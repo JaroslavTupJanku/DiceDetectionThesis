@@ -218,3 +218,15 @@ obj/
 # Build folders
 Debug/
 Release/
+
+# Dataset
+data/*
+!data/.gitkeep
+
+# Models
+models/*
+!models/.gitkeep
+
+# Experiments
+experiments/*
+!experiments/.gitkeep
