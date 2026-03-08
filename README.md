@@ -10,11 +10,11 @@ The project combines a TensorFlow-based detection model developed in Python with
 
 ```
 DiceDetectionThesis/
-├── python/ # TensorFlow training and inference
-├── csharp/ # C# desktop application
-├── data/ # Dataset (not included in repo)
-├── models/ # Trained models (ignored by git)
-├── docs/ # Documentation and diagrams
+├── python/  # TensorFlow training and inference
+├── csharp/  # C# desktop application
+├── data/    # Dataset (not included in repo)
+├── models/  # Trained models (ignored by git)
+├── docs/    # Documentation and diagrams
 └── README.md
 ```
 ## Features
