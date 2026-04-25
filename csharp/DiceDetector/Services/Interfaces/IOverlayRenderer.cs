@@ -7,6 +7,7 @@ namespace DiceDetector.Services.Interfaces
     {
         bool UseVibrantColors { get; set; }
         IReadOnlyList<OverlayItem> Build(IReadOnlyList<DetectionResult> detections, BitmapSource? image);
+        IReadOnlyList<EvalOverlayItem> BuildEvalOverlay(EvalResult evalResult, BitmapSource? image);
     }
 
 }

@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Input;
 using DiceDetector.Models;
+using DiceDetector.Services;
 using DiceDetector.Services.Interfaces;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -28,11 +29,24 @@ namespace DiceDetector.ViewModel
         private string _inferenceTimeText = "-";
         private int _detectionCount;
         private string _totalValueText = "-";
+        private string _totalValueBreakdownText = "";
         private string _averageConfidenceText = "-";
         private double _progressValue;
         private bool _showProgress;
         private string _uncertainCountText = "-";
         private bool _hasDetections;
+        private readonly AnnotationService _annotationService = new();
+        private bool _isEvalMode;
+        private string _evalStatusText = "";
+        private EvalResult? _lastEvalResult;
+        private string _confidenceRangeText = "";
+        private string _confidenceDetailText = "";
+        private string _dominantValueText = "";
+        private string _detectionSizeRangeText = "";
+        private string _missedCountText = "";
+        private int _evalAnnotationCount;
+        private int _missedDiceCount;
+        private bool _hasMissedDice;
 
         public MainViewModel(
             IImageDialogService imageDialogService,
@@ -54,6 +68,8 @@ namespace DiceDetector.ViewModel
             CaptureFromCameraCommand = new AsyncRelayCommand(CaptureFromCameraAsync, () => _isCameraActive);
             ToggleThemeCommand = new RelayCommand(ToggleTheme);
             ShowDiceDetailCommand = new RelayCommand<DetectionResult>(ShowDiceDetail);
+            LoadAnnotationsCommand = new RelayCommand(LoadAnnotations);
+            DisableEvalModeCommand = new RelayCommand(DisableEvalMode);
 
             // Nastavit výchozí stav podle aktuálního tématu
             _isLightTheme = _themeService.CurrentTheme == AppTheme.Light;
@@ -153,6 +169,12 @@ namespace DiceDetector.ViewModel
             private set => SetProperty(ref _totalValueText, value);
         }
 
+        public string TotalValueBreakdownText
+        {
+            get => _totalValueBreakdownText;
+            private set => SetProperty(ref _totalValueBreakdownText, value);
+        }
+
         public string AverageConfidenceText
         {
             get => _averageConfidenceText;
@@ -161,6 +183,7 @@ namespace DiceDetector.ViewModel
 
         public ObservableCollection<DetectionResult> Results { get; } = new();
         public ObservableCollection<OverlayItem> OverlayItems { get; } = new();
+        public ObservableCollection<EvalOverlayItem> EvalOverlayItems { get; } = new();
         public ObservableCollection<DiceValueCount> ValueDistribution { get; } = new();
 
         public string UncertainCountText
@@ -175,6 +198,72 @@ namespace DiceDetector.ViewModel
             private set => SetProperty(ref _hasDetections, value);
         }
 
+        public bool IsEvalMode
+        {
+            get => _isEvalMode;
+            private set => SetProperty(ref _isEvalMode, value);
+        }
+
+        public string EvalStatusText
+        {
+            get => _evalStatusText;
+            private set => SetProperty(ref _evalStatusText, value);
+        }
+
+        public EvalResult? LastEvalResult
+        {
+            get => _lastEvalResult;
+            private set => SetProperty(ref _lastEvalResult, value);
+        }
+
+        public string ConfidenceRangeText
+        {
+            get => _confidenceRangeText;
+            private set => SetProperty(ref _confidenceRangeText, value);
+        }
+
+        public string ConfidenceDetailText
+        {
+            get => _confidenceDetailText;
+            private set => SetProperty(ref _confidenceDetailText, value);
+        }
+
+        public string DominantValueText
+        {
+            get => _dominantValueText;
+            private set => SetProperty(ref _dominantValueText, value);
+        }
+
+        public string DetectionSizeRangeText
+        {
+            get => _detectionSizeRangeText;
+            private set => SetProperty(ref _detectionSizeRangeText, value);
+        }
+
+        public string MissedCountText
+        {
+            get => _missedCountText;
+            private set => SetProperty(ref _missedCountText, value);
+        }
+
+        public int EvalAnnotationCount
+        {
+            get => _evalAnnotationCount;
+            private set => SetProperty(ref _evalAnnotationCount, value);
+        }
+
+        public int MissedDiceCount
+        {
+            get => _missedDiceCount;
+            private set => SetProperty(ref _missedDiceCount, value);
+        }
+
+        public bool HasMissedDice
+        {
+            get => _hasMissedDice;
+            private set => SetProperty(ref _hasMissedDice, value);
+        }
+
         public RelayCommand OpenImageCommand { get; }
         public RelayCommand ClearCommand { get; }
         public AsyncRelayCommand RunInferenceCommand { get; }
@@ -182,6 +271,8 @@ namespace DiceDetector.ViewModel
         public AsyncRelayCommand CaptureFromCameraCommand { get; }
         public RelayCommand ToggleThemeCommand { get; }
         public RelayCommand<DetectionResult> ShowDiceDetailCommand { get; }
+        public RelayCommand LoadAnnotationsCommand { get; }
+        public RelayCommand DisableEvalModeCommand { get; }
 
         public event Action<DetectionResult>? RequestShowDiceDetail;
 
@@ -227,6 +318,12 @@ namespace DiceDetector.ViewModel
 
                 ProgressValue = 60;
                 Results.Clear();
+
+                // Clear eval overlay from previous inference
+                EvalOverlayItems.Clear();
+                MissedDiceCount = 0;
+                HasMissedDice = false;
+
                 foreach (var item in result.Detections)
                 {
                     Results.Add(item);
@@ -252,6 +349,46 @@ namespace DiceDetector.ViewModel
 
                 UpdateStatistics(result.Detections);
 
+                // Eval mode - compare with annotations if loaded
+                EvalOverlayItems.Clear();
+                if (_annotationService.IsLoaded && _currentImagePath != null)
+                {
+                    var annotation = _annotationService.FindAnnotation(_currentImagePath);
+                    if (annotation != null)
+                    {
+                        LastEvalResult = _annotationService.Evaluate(result.Detections, annotation);
+                        MissedCountText = $"Chybějící: {LastEvalResult.FalseNegatives}";
+                        MissedDiceCount = LastEvalResult.FalseNegatives;
+                        HasMissedDice = LastEvalResult.FalseNegatives > 0;
+                        EvalStatusText = $"TP: {LastEvalResult.TruePositives}  FP: {LastEvalResult.FalsePositives}  FN: {LastEvalResult.FalseNegatives}\n" +
+                                         $"Precision: {LastEvalResult.Precision:P0}  Recall: {LastEvalResult.Recall:P0}\n" +
+                                         $"Accuracy: {LastEvalResult.ClassificationAccuracy:P0}  IoU: {LastEvalResult.AverageIoU:F2}";
+
+                        // Propagate eval data to detection results
+                        foreach (var match in LastEvalResult.Matches)
+                        {
+                            match.Detection.EvalIoU = match.IoU;
+                            match.Detection.EvalGroundTruth = match.Annotation.Value;
+                            match.Detection.EvalMatchType = match.IsCorrectClass ? "TP" : "WrongClass";
+                        }
+                        foreach (var fp in LastEvalResult.FalsePositiveDetections)
+                        {
+                            fp.EvalMatchType = "FP";
+                        }
+
+                        var evalOverlays = _overlayRenderer.BuildEvalOverlay(LastEvalResult, DisplayedImage);
+                        foreach (var eo in evalOverlays)
+                        {
+                            EvalOverlayItems.Add(eo);
+                        }
+                    }
+                    else
+                    {
+                        LastEvalResult = null;
+                        EvalStatusText = "Anotace pro tento obrázek nenalezena";
+                    }
+                }
+
                 StatusText = $"✓ Detekce dokončena - nalezeno {result.Detections.Count} kostek";
             }
             catch (Exception ex)
@@ -272,8 +409,14 @@ namespace DiceDetector.ViewModel
             if (!detections.Any())
             {
                 TotalValueText = "-";
+                TotalValueBreakdownText = "";
                 AverageConfidenceText = "-";
                 UncertainCountText = "-";
+                ConfidenceRangeText = "";
+                ConfidenceDetailText = "";
+                DominantValueText = "";
+                DetectionSizeRangeText = "";
+                MissedCountText = "";
                 HasDetections = false;
                 ValueDistribution.Clear();
                 return;
@@ -282,21 +425,34 @@ namespace DiceDetector.ViewModel
             var totalValue = 0;
             var counts = new int[6];
             var uncertainCount = 0;
+            var values = new List<string>();
 
             foreach (var detection in detections)
             {
                 totalValue += detection.DiceValue;
+                values.Add(detection.DiceValue.ToString());
                 if (detection.DiceValue >= 1 && detection.DiceValue <= 6)
                     counts[detection.DiceValue - 1]++;
-                if (detection.ClsConfidence < 0.70f)
+                if (detection.FinalConfidence < 0.70f)
                     uncertainCount++;
             }
 
-            var avgConfidence = detections.Average(d => d.Confidence);
+            var avgFinalConfidence = detections.Average(d => d.FinalConfidence);
+            var minConf = detections.Min(d => d.FinalConfidence);
+            var maxConf = detections.Max(d => d.FinalConfidence);
+            var avgDet = detections.Average(d => (double)d.DetConfidence);
+            var avgCls = detections.Average(d => (double)d.ClsConfidence);
+
             TotalValueText = totalValue.ToString();
-            AverageConfidenceText = $"{avgConfidence:P0}";
+            TotalValueBreakdownText = detections.Count > 1
+                ? $"{string.Join(" + ", values)} = {totalValue}"
+                : "";
+            AverageConfidenceText = $"{avgFinalConfidence:P0}";
+            ConfidenceRangeText = $"Rozsah: {minConf:P0} – {maxConf:P0}";
+            ConfidenceDetailText = $"Det: {avgDet:P0}  Cls: {avgCls:P0}";
 
             var maxCount = counts.Max();
+
             const double maxBarHeight = 60.0;
 
             ValueDistribution.Clear();
@@ -312,7 +468,19 @@ namespace DiceDetector.ViewModel
                 });
             }
 
-            UncertainCountText = $"{uncertainCount}";
+            UncertainCountText = uncertainCount > 0 
+                ? $"{uncertainCount} ({(uncertainCount * 100.0 / detections.Count):F0}%)"
+                : "0";
+
+            // Find most frequent value
+            var mostFrequentValue = counts
+                .Select((count, index) => new { Value = index + 1, Count = count })
+                .OrderByDescending(x => x.Count)
+                .First();
+            DominantValueText = mostFrequentValue.Count > 0
+                ? $"Nejčastější: {mostFrequentValue.Value} ({mostFrequentValue.Count}×)"
+                : "";
+
             HasDetections = true;
         }
 
@@ -320,6 +488,98 @@ namespace DiceDetector.ViewModel
         {
             if (result != null)
                 RequestShowDiceDetail?.Invoke(result);
+        }
+
+        private void LoadAnnotations()
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Vyberte složku s XML anotacemi (Pascal VOC)"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _annotationService.LoadFolder(dialog.FolderName);
+                IsEvalMode = _annotationService.IsLoaded;
+                EvalAnnotationCount = _annotationService.AnnotationCount;
+                StatusText = _annotationService.IsLoaded
+                    ? $"✓ Eval mode: {_annotationService.AnnotationCount} anotací z {Path.GetFileName(dialog.FolderName)}"
+                    : "✗ Žádné anotace nenalezeny";
+
+                // If we already have detections and image, re-evaluate with annotations
+                if (_annotationService.IsLoaded && Results.Count > 0 && _currentImagePath != null)
+                {
+                    var annotation = _annotationService.FindAnnotation(_currentImagePath);
+                    if (annotation != null)
+                    {
+                        LastEvalResult = _annotationService.Evaluate(Results.ToList(), annotation);
+                        MissedCountText = $"Chybějící: {LastEvalResult.FalseNegatives}";
+                        MissedDiceCount = LastEvalResult.FalseNegatives;
+                        HasMissedDice = LastEvalResult.FalseNegatives > 0;
+                        EvalStatusText = $"TP: {LastEvalResult.TruePositives}  FP: {LastEvalResult.FalsePositives}  FN: {LastEvalResult.FalseNegatives}\n" +
+                                         $"Precision: {LastEvalResult.Precision:P0}  Recall: {LastEvalResult.Recall:P0}\n" +
+                                         $"Accuracy: {LastEvalResult.ClassificationAccuracy:P0}  IoU: {LastEvalResult.AverageIoU:F2}";
+
+                        // Propagate eval data to detection results
+                        foreach (var match in LastEvalResult.Matches)
+                        {
+                            match.Detection.EvalIoU = match.IoU;
+                            match.Detection.EvalGroundTruth = match.Annotation.Value;
+                            match.Detection.EvalMatchType = match.IsCorrectClass ? "TP" : "WrongClass";
+                        }
+                        foreach (var fp in LastEvalResult.FalsePositiveDetections)
+                        {
+                            fp.EvalMatchType = "FP";
+                        }
+
+                        EvalOverlayItems.Clear();
+                        var evalOverlays = _overlayRenderer.BuildEvalOverlay(LastEvalResult, DisplayedImage);
+                        foreach (var eo in evalOverlays)
+                        {
+                            EvalOverlayItems.Add(eo);
+                        }
+
+                        StatusText = $"✓ Eval aktualizováno pro aktuální obrázek";
+                    }
+                    else
+                    {
+                        EvalStatusText = "Anotace pro tento obrázek nenalezena";
+                        LastEvalResult = null;
+                        MissedDiceCount = 0;
+                        HasMissedDice = false;
+                        EvalOverlayItems.Clear();
+                    }
+                }
+                else
+                {
+                    EvalStatusText = "";
+                    LastEvalResult = null;
+                    MissedDiceCount = 0;
+                    HasMissedDice = false;
+                    EvalOverlayItems.Clear();
+                }
+            }
+        }
+
+        private void DisableEvalMode()
+        {
+            _annotationService.Clear();
+            IsEvalMode = false;
+            EvalStatusText = "";
+            LastEvalResult = null;
+            MissedDiceCount = 0;
+            HasMissedDice = false;
+            EvalOverlayItems.Clear();
+
+            // Clear eval data from all existing detection results
+            foreach (var result in Results)
+            {
+                result.EvalMatchType = null;
+                result.EvalIoU = null;
+                result.EvalGroundTruth = null;
+            }
+
+            StatusText = "Eval mode vypnut";
         }
 
         private async Task ToggleCameraAsync()
@@ -423,13 +683,22 @@ namespace DiceDetector.ViewModel
             IsImageLoaded = false;
             Results.Clear();
             OverlayItems.Clear();
+            EvalOverlayItems.Clear();
             ValueDistribution.Clear();
             DetectionCount = 0;
             InferenceTimeText = "-";
             TotalValueText = "-";
+            TotalValueBreakdownText = "";
             AverageConfidenceText = "-";
             UncertainCountText = "-";
+            ConfidenceRangeText = "";
+            ConfidenceDetailText = "";
+            DominantValueText = "";
+            DetectionSizeRangeText = "";
+            MissedCountText = "";
             HasDetections = false;
+            LastEvalResult = null;
+            EvalStatusText = "";
             StatusText = "Připraveno";
         }
 

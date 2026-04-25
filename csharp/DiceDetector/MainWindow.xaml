@@ -126,23 +126,23 @@
         <!-- ═══ Header ═══ -->
         <Border Grid.Row="0" Grid.ColumnSpan="3"
                 Background="{DynamicResource Brush.Surface}"
-                CornerRadius="14" Padding="20,16" Margin="0,0,0,12"
+                CornerRadius="14" Padding="20,14" Margin="0,0,0,12"
                 BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Vertical" DockPanel.Dock="Left" VerticalAlignment="Center">
-                    <TextBlock FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text}">
                         Detekce a analýza hracích kostek
                     </TextBlock>
-                    <TextBlock Text="WPF · MVVM · ONNX Runtime" Margin="0,4,0,0"
-                               FontSize="12" Foreground="{DynamicResource Brush.TextMuted}" />
+                    <TextBlock Text="WPF · MVVM · ONNX Runtime" Margin="0,2,0,0"
+                               FontSize="11" Foreground="{DynamicResource Brush.TextMuted}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                    <!-- Toggle group: theme + overlay colors -->
+                    <!-- Toggle group -->
                     <Border Background="{DynamicResource Brush.SurfaceAlt}"
                             CornerRadius="16" Padding="3"
                             BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
-                            Margin="0,0,16,0" VerticalAlignment="Center">
+                            Margin="0,0,12,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <ToggleButton Style="{StaticResource ThemeToggleStyle}"
                                           IsChecked="{Binding IsLightTheme}"
@@ -154,28 +154,29 @@
                         </StackPanel>
                     </Border>
 
-                    <Button Content="Načíst obrázek" Width="130" Margin="0,0,8,0"
+                    <Button Content="Načíst" Width="80" Margin="0,0,6,0"
                             Command="{Binding OpenImageCommand}"
-                            Background="{DynamicResource Brush.ButtonGreen}" Foreground="White"/>
-
-                    <Button Content="Kamera" Width="100" Margin="0,0,8,0"
+                            Background="{DynamicResource Brush.ButtonGreen}" Foreground="White"
+                            ToolTip="Načíst obrázek ze souboru"/>
+                    <Button Content="Kamera" Width="80" Margin="0,0,6,0"
                             Command="{Binding ToggleCameraCommand}"
                             Background="{DynamicResource Brush.ButtonBlue}" Foreground="White"/>
-
-                    <Button Content="Zachytit" Width="100" Margin="0,0,8,0"
+                    <Button Content="Zachytit" Width="80" Margin="0,0,6,0"
                             Command="{Binding CaptureFromCameraCommand}"
                             Background="{DynamicResource Brush.ButtonPurple}" Foreground="White"/>
-
-                    <Button Content="Spustit AI" Width="120" Margin="0,0,8,0"
+                    <Button Content="Spustit AI" Width="100" Margin="0,0,6,0"
                             Command="{Binding RunInferenceCommand}"
                             IsEnabled="{Binding CanRunInference}"
                             Background="{DynamicResource Brush.Error}" Foreground="White"/>
-
-                    <Button Content="Vyčistit" Width="100"
+                    <Button Content="Vyčistit" Width="80" Margin="0,0,6,0"
                             Command="{Binding ClearCommand}"
                             Background="{DynamicResource Brush.ButtonGray}"
                             Foreground="{DynamicResource Brush.Text}"
                             BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"/>
+                    <Button Content="Evaluace" Width="84" Margin="0"
+                            Command="{Binding LoadAnnotationsCommand}"
+                            Background="{DynamicResource Brush.ButtonBlue}" Foreground="White"
+                            ToolTip="Načíst XML anotace pro evaluační režim (Pascal VOC)"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -184,29 +185,40 @@
         <UniformGrid Grid.Row="1" Grid.ColumnSpan="3" Columns="4" Margin="0,0,0,12">
             <Border Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="POČET KOSTEK" Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="🎲  POČET KOSTEK" Style="{StaticResource CardTitleStyle}"/>
                     <TextBlock Text="{Binding DetectionCount}" Style="{StaticResource CardValueStyle}"/>
+                    <TextBlock Text="{Binding DominantValueText}" FontSize="11" Margin="0,2,0,0"
+                               Foreground="{DynamicResource Brush.TextMuted}"/>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="SOUČET HODNOT" Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="∑  SOUČET HODNOT" Style="{StaticResource CardTitleStyle}"/>
                     <TextBlock Text="{Binding TotalValueText}" Style="{StaticResource CardValueStyle}"
                                Foreground="{DynamicResource Brush.Primary}"/>
+                    <TextBlock Text="{Binding TotalValueBreakdownText}" FontSize="11"
+                               Foreground="{DynamicResource Brush.TextMuted}" Margin="0,4,0,0"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="PRŮMĚRNÁ JISTOTA" Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="📊  PRŮMĚRNÁ SPOLEHLIVOST" Style="{StaticResource CardTitleStyle}"/>
                     <TextBlock Text="{Binding AverageConfidenceText}" Style="{StaticResource CardValueStyle}"
                                Foreground="{DynamicResource Brush.Success}"/>
+                    <TextBlock Text="{Binding ConfidenceRangeText}" FontSize="11" Margin="0,2,0,0"
+                               Foreground="{DynamicResource Brush.TextMuted}"/>
+                    <TextBlock Text="{Binding ConfidenceDetailText}" FontSize="10" Margin="0,1,0,0"
+                               Foreground="{DynamicResource Brush.TextSubtle}"/>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource StatCardStyle}" Margin="0">
                 <StackPanel>
-                    <TextBlock Text="ČAS INFERENCE" Style="{StaticResource CardTitleStyle}"/>
-                    <TextBlock Text="{Binding InferenceTimeText}" Style="{StaticResource CardValueStyle}"
+                    <TextBlock Text="⚠  NEJISTÉ VÝSLEDKY" Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="{Binding UncertainCountText}" Style="{StaticResource CardValueStyle}"
                                Foreground="{DynamicResource Brush.Warning}"/>
+                    <TextBlock Text="final &lt; 70%" FontSize="11" Margin="0,2,0,0"
+                               Foreground="{DynamicResource Brush.TextMuted}"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
@@ -235,6 +247,7 @@
                 <Viewbox Stretch="Uniform">
                     <Grid>
                         <Image Source="{Binding DisplayedImage}" Stretch="None"/>
+                        <!-- Regular detection overlay (hidden when eval mode has results) -->
                         <Canvas>
                             <ItemsControl ItemsSource="{Binding OverlayItems}">
                                 <ItemsControl.ItemsPanel>
@@ -249,10 +262,8 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Width="{Binding Width}" Height="{Binding Height}">
-                                            <!-- Bold colored border - scaled to image size -->
                                             <Border BorderBrush="{Binding Color}" BorderThickness="{Binding StrokeThickness}"
                                                     CornerRadius="{Binding BoxCornerRadius}"/>
-                                            <!-- Index tag above the box -->
                                             <Border Background="{Binding Color}"
                                                     CornerRadius="{Binding LabelCornerRadius}"
                                                     Padding="{Binding LabelPadding}"
@@ -267,6 +278,64 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </Canvas>
+                        <!-- Eval overlay -->
+                        <Canvas Visibility="{Binding IsEvalMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl ItemsSource="{Binding EvalOverlayItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="{Binding Width}" Height="{Binding Height}">
+                                            <!-- Tinted fill -->
+                                            <Border Background="{Binding Color}" Opacity="0.15"
+                                                    CornerRadius="{Binding BoxCornerRadius}"/>
+                                            <!-- Border -->
+                                            <Border BorderBrush="{Binding Color}" BorderThickness="{Binding StrokeThickness}"
+                                                    CornerRadius="{Binding BoxCornerRadius}"/>
+                                            <!-- Label tag for non-missed items -->
+                                            <Border Background="{Binding Color}"
+                                                    CornerRadius="{Binding LabelCornerRadius}"
+                                                    Padding="{Binding LabelPadding}"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    Margin="{Binding LabelMargin}"
+                                                    Visibility="{Binding IsNotMissed, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="{Binding Label}"
+                                                           Foreground="White" FontWeight="Bold" FontSize="{Binding LabelFontSize}"/>
+                                            </Border>
+                                            <!-- Centered cross for missed items -->
+                                                                 <TextBlock Text="✕"
+                                                                            Foreground="{Binding Color}"
+                                                                            FontSize="{Binding CenterFontSize}"
+                                                                            FontWeight="ExtraBold" Opacity="0.5"
+                                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                            Visibility="{Binding IsDashed, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                             </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <!-- Missed dice counter overlay (top-right corner of image) -->
+                                                <Border Background="#DC143C" CornerRadius="6" Padding="8,4"
+                                                        Canvas.Right="10" Canvas.Top="10"
+                                                        Visibility="{Binding HasMissedDice, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="✕" FontSize="14" FontWeight="Bold" Foreground="White"
+                                                                   Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Foreground="White" FontWeight="SemiBold" FontSize="12">
+                                                            <Run Text="Nenalezeno:"/>
+                                                            <Run Text="{Binding MissedDiceCount, Mode=OneWay}" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Canvas>
                     </Grid>
                 </Viewbox>
             </Grid>
@@ -292,8 +361,8 @@
                                Foreground="{DynamicResource Brush.Text}"/>
                 </Border>
 
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10">
-                    <ItemsControl ItemsSource="{Binding Results}">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10,10,10,10">
+                    <ItemsControl ItemsSource="{Binding Results}" Margin="0,0,45,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{DynamicResource Brush.SurfaceAlt}"
@@ -309,29 +378,41 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Color dot matching overlay -->
                                         <Border Grid.Column="0"
                                                 Background="{Binding ColorBrush}"
-                                                Width="32" Height="32"
+                                                Width="38" Height="38"
                                                 CornerRadius="8"
                                                 VerticalAlignment="Top" Margin="0,0,10,0">
                                             <TextBlock Text="{Binding Index}"
-                                                       Foreground="White" FontWeight="Bold" FontSize="14"
+                                                       Foreground="White" FontWeight="Bold" FontSize="16"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
 
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Brush.Text}" Margin="0,0,0,4"/>
-                                            <TextBlock Text="{Binding ValueText}" FontSize="13"
-                                                       Foreground="{DynamicResource Brush.Primary}"/>
-                                            <TextBlock Text="{Binding ConfidenceText}" FontSize="12" Margin="0,2,0,0"
-                                                       Foreground="{DynamicResource Brush.Success}"/>
-                                            <TextBlock Text="{Binding BoxText}" FontSize="11" Margin="0,2,0,0"
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <DockPanel Margin="0,0,0,2">
+                                                <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource Brush.Text}"/>
+                                                <TextBlock Text="{Binding ValueText}" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{DynamicResource Brush.Primary}" Margin="8,0,0,0"/>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding ConfidenceText}" FontSize="11"
                                                        Foreground="{DynamicResource Brush.TextMuted}"/>
+                                            <TextBlock Text="{Binding BoxText}" FontSize="10" Margin="0,1,0,0"
+                                                       Foreground="{DynamicResource Brush.TextSubtle}"/>
                                         </StackPanel>
+
+                                        <!-- Status indicator -->
+                                        <Border Grid.Column="2" VerticalAlignment="Center" Margin="8,0,4,0"
+                                                Background="{Binding StatusBrush}"
+                                                CornerRadius="10" Padding="8,3" MinWidth="32">
+                                            <TextBlock Text="{Binding StatusIcon}"
+                                                       Foreground="White" FontWeight="Bold" FontSize="10"
+                                                       HorizontalAlignment="Center"/>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -380,11 +461,54 @@
                                 BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⚠" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <TextBlock Text="Nejisté detekce (cls &lt; 0.70):" FontSize="12"
+                                <TextBlock Text="Nejisté detekce (final &lt; 0.70):" FontSize="12"
                                            Foreground="{DynamicResource Brush.TextMuted}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding UncertainCountText}" FontSize="14" FontWeight="Bold"
                                            Foreground="{DynamicResource Brush.Warning}" Margin="6,0,0,0"
                                            VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ━━━ Eval mode results ━━━ -->
+                        <Border Background="{DynamicResource Brush.SurfaceAlt}" CornerRadius="10"
+                                Padding="12,10" Margin="0,10,0,0"
+                                BorderBrush="{DynamicResource Brush.Primary}" BorderThickness="1.5"
+                                Visibility="{Binding IsEvalMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <TextBlock Text="📋 Evaluace" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Brush.Text}" DockPanel.Dock="Left"
+                                               VerticalAlignment="Center"/>
+                                    <Button Content="✕" FontSize="12" DockPanel.Dock="Right"
+                                            HorizontalAlignment="Right" Padding="8,2"
+                                            Command="{Binding DisableEvalModeCommand}"
+                                            Background="{DynamicResource Brush.ButtonGray}"
+                                            Foreground="{DynamicResource Brush.Text}"
+                                            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+                                            ToolTip="Vypnout eval režim"/>
+                                </DockPanel>
+
+                                <TextBlock Text="{Binding EvalStatusText}" FontSize="11"
+                                           Foreground="{DynamicResource Brush.TextMuted}" TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+
+                                <!-- Eval legend with colored pills -->
+                                <TextBlock Text="Barevné značení na obrázku:" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Brush.Text}" Margin="0,0,0,4"/>
+                                <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <Border Background="#32CD32" CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
+                                        <TextBlock Text="Správné" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#FFA500" CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
+                                        <TextBlock Text="Špatná klas." FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#DC143C" CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
+                                        <TextBlock Text="False positive" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#DC143C" CornerRadius="3" Padding="6,2" Margin="0,0,0,4">
+                                        <TextBlock Text="Chybějící (✕)" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+                                    </Border>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -419,8 +543,13 @@
                              Foreground="{DynamicResource Brush.Primary}"
                              BorderThickness="0" VerticalAlignment="Center"/>
 
-                <TextBlock Grid.Column="2" Text="ONNX Runtime" FontSize="11"
-                           Foreground="{DynamicResource Brush.TextSubtle}" VerticalAlignment="Center"/>
+
+
+                <TextBlock Grid.Column="2" FontSize="11" VerticalAlignment="Center">
+                    <Run Text="{Binding InferenceTimeText, Mode=OneWay}" Foreground="{DynamicResource Brush.Warning}"/>
+                    <Run Text=" · " Foreground="{DynamicResource Brush.TextSubtle}"/>
+                    <Run Text="ONNX Runtime" Foreground="{DynamicResource Brush.TextSubtle}"/>
+                </TextBlock>
             </Grid>
         </Border>
     </Grid>
