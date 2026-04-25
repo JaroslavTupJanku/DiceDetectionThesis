@@ -27,21 +27,21 @@ DiceDetectionThesis/
 
 ## Features
 
-- Dice detection using deep learning
-- TensorFlow model training and evaluation
-- Image preprocessing and dataset handling
-- C# desktop application for model inference
-- Visualization of detection results
+* Dice detection using deep learning
+* TensorFlow model training and evaluation
+* Image preprocessing and dataset handling
+* C# desktop application for model inference
+* Visualization of detection results
 
 ---
 
 ## Technologies
 
-- Python
-- TensorFlow / Keras
-- OpenCV
-- C#
-- .NET
+* Python
+* TensorFlow / Keras
+* OpenCV
+* C#
+* .NET
 
 ---
 
@@ -75,12 +75,6 @@ Place trained weights into:
 models/
 ```
 
-Example:
-
-```
-models/dice_model.h5
-```
-
 ---
 
 ## Setup
@@ -109,12 +103,12 @@ Make sure the trained model path is correctly configured.
 
 ## Notes
 
-- Large files such as datasets, trained models, and experiment outputs are excluded via `.gitignore`.
-- The repository is structured to separate training (Python) and inference (C#).
+* Large files such as datasets, trained models, and experiment outputs are excluded via `.gitignore`.
+* The repository is structured to separate training (Python) and inference (C#).
 
 ---
 
 ## Author
 
-Jaroslav Janku  
+Jaroslav TupJanku
 Master's Thesis Project
