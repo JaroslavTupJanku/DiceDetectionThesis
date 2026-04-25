@@ -3,7 +3,6 @@ using DiceDetector.Services.Interfaces;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,32 +15,17 @@ namespace DiceDetector.Services
         private readonly InferenceSession detectorSession;
         private readonly InferenceSession classifierSession;
 
-        private const int DetectorSize = 640;
-        private const int ClassifierWidth = 384;
-        private const int ClassifierHeight = 384;
-
-        private const float DetectorConfidenceThreshold = 0.45f;
-        private const float DetectorIouThreshold = 0.5f;
-        private const float CropMargin = 0.12f;
-
-        private const int RegMax = 16;
-        private const bool EnableDebugLogs = true;
-
         public OnnxInferenceService(IPreprocessingService preprocessingService)
         {
             this.preprocessingService = preprocessingService;
-
-            var baseDir = AppContext.BaseDirectory;
-            var detectorPath = Path.Combine(baseDir, "OnnxModels", "dice_detector.onnx");
-            var classifierPath = Path.Combine(baseDir, "OnnxModels", "dice_classifier.onnx");
 
             var sessionOptions = new SessionOptions
             {
                 GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
             };
 
-            detectorSession = new InferenceSession(detectorPath, sessionOptions);
-            classifierSession = new InferenceSession(classifierPath, sessionOptions);
+            detectorSession = new InferenceSession(InferenceSettings.DetectorModelPath, sessionOptions);
+            classifierSession = new InferenceSession(InferenceSettings.ClassifierModelPath, sessionOptions);
         }
 
         public Task<InferenceResult> RunAsync(string imagePath)
@@ -49,13 +33,6 @@ namespace DiceDetector.Services
             return Task.Run(() =>
             {
                 var bitmap = LoadBitmap(imagePath);
-
-                if (EnableDebugLogs)
-                {
-                    Debug.WriteLine($"RunAsync image: {imagePath}");
-                    Debug.WriteLine($"Original bitmap size: {bitmap.PixelWidth}x{bitmap.PixelHeight}");
-                }
-
                 var detections = RunDetector(bitmap);
                 var classified = new List<DetectionResult>(detections.Count);
 
@@ -68,17 +45,12 @@ namespace DiceDetector.Services
                     classified.Add(new DetectionResult
                     {
                         Index = classified.Count + 1,
-                        Label = $"Kostka {classified.Count + 1}",
-                        ValueText = $"Hodnota: {predictedValue}",
-                        ConfidenceText = $"Det: {detection.Confidence:0.00} | Cls: {clsConfidence:0.00}",
-                        BoxText = $"Box: x={(int)detection.X}, y={(int)detection.Y}, w={(int)detection.Width}, h={(int)detection.Height}",
                         X = detection.X,
                         Y = detection.Y,
                         Width = detection.Width,
                         Height = detection.Height,
-                        Confidence = detection.Confidence,
                         DiceValue = predictedValue,
-                        DetConfidence = detection.Confidence,
+                        DetConfidence = detection.DetConfidence,
                         ClsConfidence = clsConfidence,
                         TopPredictions = topPredictions,
                         CropImage = crop
@@ -99,18 +71,11 @@ namespace DiceDetector.Services
             var originalHeight = original.PixelHeight;
             var letterbox = PrepareLetterboxedDetectorInput(original);
 
-            if (EnableDebugLogs)
-            {
-                Debug.WriteLine("=== DETECTOR DEBUG ===");
-                Debug.WriteLine($"Original size: {originalWidth}x{originalHeight}");
-                Debug.WriteLine($"Letterbox scale: {letterbox.Scale:0.######}");
-                Debug.WriteLine($"Letterbox padLeft: {letterbox.PadLeft}, padTop: {letterbox.PadTop}");
-                LogArrayMinMax("Detector input tensor", letterbox.Tensor);
-            }
-
             var inputTensor = new DenseTensor<float>(
                 letterbox.Tensor,
-                [1, DetectorSize, DetectorSize, 3]);
+                [1, InferenceSettings.DetectorSize, 
+                    InferenceSettings.DetectorSize, 
+                    3]);
 
             var inputName = detectorSession.InputMetadata.Keys.First();
             var inputs = new List<NamedOnnxValue>
@@ -131,12 +96,15 @@ namespace DiceDetector.Services
                 originalWidth,
                 originalHeight);
 
-            var nms = ApplyNms(decoded, DetectorIouThreshold);
+            var nms = ApplyNms(decoded, InferenceSettings.DetectorIouThreshold);
             var results = new List<DetectionResult>(nms.Count);
 
             foreach (var det in nms)
             {
-                var expanded = ExpandBox(det.X1, det.Y1, det.X2, det.Y2, originalWidth, originalHeight, CropMargin);
+                var expanded = ExpandBox(det.X1, det.Y1, det.X2, det.Y2, 
+                    originalWidth, originalHeight, 
+                    InferenceSettings.CropMargin);
+
                 if (expanded == null)
                 {
                     continue;
@@ -144,26 +112,16 @@ namespace DiceDetector.Services
 
                 var box = expanded;
 
-                if (EnableDebugLogs && results.Count < 10)
-                {
-                    Debug.WriteLine(
-                        $"Det #{results.Count + 1}: score={det.Score:0.####}, " +
-                        $"xyxy=({det.X1:0.0},{det.Y1:0.0},{det.X2:0.0},{det.Y2:0.0}), " +
-                        $"expanded=({box.X:0.0},{box.Y:0.0},{box.Width:0.0},{box.Height:0.0})");
-                }
-
                 results.Add(new DetectionResult
                 {
                     Index = results.Count + 1,
-                    Label = "Kostka",
-                    ValueText = "Hodnota: ?",
-                    ConfidenceText = $"Confidence: {det.Score:0.00}",
-                    BoxText = $"Box: x={(int)box.X}, y={(int)box.Y}, w={(int)box.Width}, h={(int)box.Height}",
                     X = box.X,
                     Y = box.Y,
                     Width = box.Width,
                     Height = box.Height,
-                    Confidence = det.Score
+                    DiceValue = 0,
+                    DetConfidence = det.Score,
+                    ClsConfidence = 0f
                 });
             }
 
@@ -174,7 +132,10 @@ namespace DiceDetector.Services
         {
             var inputData = PrepareClassifierTensor(crop);
             var inputTensor = new DenseTensor<float>(
-                inputData, [1, ClassifierHeight, ClassifierWidth, 3]);
+                inputData, [1, 
+                    InferenceSettings.ClassifierHeight, 
+                    InferenceSettings.ClassifierWidth, 
+                    3]);
 
             var inputName = classifierSession.InputMetadata.Keys.First();
             var inputs = new List<NamedOnnxValue>
@@ -183,7 +144,7 @@ namespace DiceDetector.Services
             };
 
             using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs = classifierSession.Run(inputs);
-            var output = outputs.First().AsTensor<float>();
+            var output = outputs[0].AsTensor<float>();
             var probs = output.ToArray();
 
             var maxIndex = 0;
@@ -205,21 +166,23 @@ namespace DiceDetector.Services
             return (maxIndex + 1, maxValue, topPredictions);
         }
 
-        private float[] PrepareClassifierTensor(BitmapSource bitmap)
+        private static float[] PrepareClassifierTensor(BitmapSource bitmap)
         {
-            var resized = ResizeBitmap(EnsureRgb24(bitmap), ClassifierWidth, ClassifierHeight);
+            var classifierWidth = InferenceSettings.ClassifierWidth;
+            var classifierHeight = InferenceSettings.ClassifierHeight;
+            var resized = ResizeBitmap(EnsureRgb24(bitmap), classifierWidth, classifierHeight);
 
-            var stride = ClassifierWidth * 3;
-            var pixels = new byte[ClassifierHeight * stride];
+            var stride = classifierWidth * 3;
+            var pixels = new byte[classifierHeight * stride];
             resized.CopyPixels(pixels, stride, 0);
 
-            var tensor = new float[ClassifierWidth * ClassifierHeight * 3];
-            for (var y = 0; y < ClassifierHeight; y++)
+            var tensor = new float[classifierWidth * classifierHeight * 3];
+            for (var y = 0; y < classifierHeight; y++)
             {
-                for (var x = 0; x < ClassifierWidth; x++)
+                for (var x = 0; x < classifierWidth; x++)
                 {
                     var pixelIndex = y * stride + x * 3;
-                    var flatIndex = (y * ClassifierWidth + x) * 3;
+                    var flatIndex = (y * classifierWidth + x) * 3;
 
                     tensor[flatIndex + 0] = pixels[pixelIndex + 0]; // R
                     tensor[flatIndex + 1] = pixels[pixelIndex + 1]; // G
@@ -247,7 +210,7 @@ namespace DiceDetector.Services
             }
         }
 
-        private List<DecodedDetection> DecodeDetections(
+        private static List<DecodedDetection> DecodeDetections(
             Tensor<float> boxOutput,
             Tensor<float> classOutput,
             float scale,
@@ -283,7 +246,7 @@ namespace DiceDetector.Services
                     for (var gx = 0; gx < grid; gx++)
                     {
                         var score = classOutput[0, anchorIndex, 0];
-                        if (score < DetectorConfidenceThreshold)
+                        if (score < InferenceSettings.DetectorConfidenceThreshold)
                         {
                             anchorIndex++;
                             continue;
@@ -343,14 +306,16 @@ namespace DiceDetector.Services
 
         private static float DecodeSingleSide(Tensor<float> boxOutput, int anchorIndex, int offset)
         {
-            Span<float> logits = stackalloc float[RegMax];
-            for (var i = 0; i < RegMax; i++)
+            var regMax = InferenceSettings.RegMax;
+            Span<float> logits = stackalloc float[regMax];
+
+            for (var i = 0; i < regMax; i++)
             {
                 logits[i] = boxOutput[0, anchorIndex, offset + i];
             }
 
             var maxLogit = logits[0];
-            for (var i = 1; i < RegMax; i++)
+            for (var i = 1; i < regMax; i++)
             {
                 if (logits[i] > maxLogit)
                 {
@@ -359,15 +324,15 @@ namespace DiceDetector.Services
             }
 
             var sum = 0f;
-            Span<float> exps = stackalloc float[RegMax];
-            for (var i = 0; i < RegMax; i++)
+            Span<float> exps = stackalloc float[regMax];
+            for (var i = 0; i < regMax; i++)
             {
                 exps[i] = MathF.Exp(logits[i] - maxLogit);
                 sum += exps[i];
             }
 
             var expected = 0f;
-            for (var i = 0; i < RegMax; i++)
+            for (var i = 0; i < regMax; i++)
             {
                 var p = exps[i] / sum;
                 expected += p * i;
@@ -494,27 +459,26 @@ namespace DiceDetector.Services
 
         private LetterboxResult PrepareLetterboxedDetectorInput(BitmapSource bitmap)
         {
+            var detectorSize = InferenceSettings.DetectorSize;
             var source = EnsureRgb24(bitmap);
 
             var originalWidth = source.PixelWidth;
             var originalHeight = source.PixelHeight;
-
-            var scale = Math.Min(DetectorSize / (float)originalWidth, DetectorSize / (float)originalHeight);
+            var scale = Math.Min(detectorSize / (float)originalWidth, detectorSize / (float)originalHeight);
 
             var resizedWidth = (int)Math.Round(originalWidth * scale);
             var resizedHeight = (int)Math.Round(originalHeight * scale);
-
             var resized = ResizeBitmap(source, resizedWidth, resizedHeight);
 
             var resizedStride = resizedWidth * 3;
             var resizedPixels = new byte[resizedHeight * resizedStride];
             resized.CopyPixels(resizedPixels, resizedStride, 0);
 
-            var canvasStride = DetectorSize * 3;
-            var canvasPixels = new byte[DetectorSize * canvasStride];
+            var canvasStride = detectorSize * 3;
+            var canvasPixels = new byte[detectorSize * canvasStride];
 
-            var padLeft = (DetectorSize - resizedWidth) / 2;
-            var padTop = (DetectorSize - resizedHeight) / 2;
+            var padLeft = (detectorSize - resizedWidth) / 2;
+            var padTop = (detectorSize - resizedHeight) / 2;
 
             for (var y = 0; y < resizedHeight; y++)
             {
@@ -523,14 +487,14 @@ namespace DiceDetector.Services
                 Buffer.BlockCopy(resizedPixels, srcOffset, canvasPixels, dstOffset, resizedStride);
             }
 
-            var tensor = new float[DetectorSize * DetectorSize * 3];
+            var tensor = new float[detectorSize * detectorSize * 3];
 
-            for (var y = 0; y < DetectorSize; y++)
+            for (var y = 0; y < detectorSize; y++)
             {
-                for (var x = 0; x < DetectorSize; x++)
+                for (var x = 0; x < detectorSize; x++)
                 {
                     var pixelIndex = y * canvasStride + x * 3;
-                    var flatIndex = (y * DetectorSize + x) * 3;
+                    var flatIndex = (y * detectorSize + x) * 3;
 
                     tensor[flatIndex + 0] = canvasPixels[pixelIndex + 0] / 255f;
                     tensor[flatIndex + 1] = canvasPixels[pixelIndex + 1] / 255f;
