@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Dark Theme  ·  deep navy tones -->
+    <SolidColorBrush x:Key="Brush.Primary"         Color="#58A6FF" />
+    <SolidColorBrush x:Key="Brush.PrimaryDark"      Color="#1F6FEB" />
+    <SolidColorBrush x:Key="Brush.Background"       Color="#0D1117" />
+    <SolidColorBrush x:Key="Brush.Surface"          Color="#161B22" />
+    <SolidColorBrush x:Key="Brush.SurfaceAlt"       Color="#1C2128" />
+    <SolidColorBrush x:Key="Brush.Text"             Color="#E6EDF3" />
+    <SolidColorBrush x:Key="Brush.TextMuted"        Color="#8B949E" />
+    <SolidColorBrush x:Key="Brush.TextSubtle"       Color="#6E7681" />
+    <SolidColorBrush x:Key="Brush.Border"           Color="#30363D" />
+    <SolidColorBrush x:Key="Brush.Success"          Color="#3FB950" />
+    <SolidColorBrush x:Key="Brush.Warning"          Color="#D29922" />
+    <SolidColorBrush x:Key="Brush.Error"            Color="#F85149" />
+    <SolidColorBrush x:Key="Brush.ButtonGreen"      Color="#238636" />
+    <SolidColorBrush x:Key="Brush.ButtonBlue"       Color="#1F6FEB" />
+    <SolidColorBrush x:Key="Brush.ButtonPurple"     Color="#8957E5" />
+    <SolidColorBrush x:Key="Brush.ButtonGray"       Color="#21262D" />
+    <SolidColorBrush x:Key="Brush.IconPrimary"      Color="#E6EDF3" />
+    <SolidColorBrush x:Key="Brush.PlaceholderIcon"  Color="#30363D" />
+    <SolidColorBrush x:Key="Brush.ToggleTrack"      Color="#30363D" />
+
+</ResourceDictionary>
