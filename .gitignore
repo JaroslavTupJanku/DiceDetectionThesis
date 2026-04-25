@@ -205,3 +205,35 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Visual Studio
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build folders
+Debug/
+Release/
+
+# Dataset
+data/*
+!data/.gitkeep
+
+# Models
+models/*
+!models/.gitkeep
+
+# Experiments
+experiments/*
+!experiments/.gitkeep
+
+# TensorFlow Model Garden
+tf-models/
+
+# Images
+data/images/*
+!data/images/.gitkeep
