@@ -237,3 +237,11 @@ tf-models/
 # Images
 data/images/*
 !data/images/.gitkeep
+
+# ML models
+*.onnx
+*.keras
+*.h5
+
+# Debug outputs
+*.png
